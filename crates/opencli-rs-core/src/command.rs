@@ -52,7 +52,26 @@ impl CliCommand {
     }
 
     pub fn needs_browser(&self) -> bool {
-        self.browser || self.strategy.requires_browser()
+        if self.browser || self.strategy.requires_browser() {
+            return true;
+        }
+        // Check if pipeline contains browser steps
+        if let Some(ref pipeline) = self.pipeline {
+            const BROWSER_STEPS: &[&str] = &[
+                "navigate", "click", "type", "wait", "press",
+                "evaluate", "snapshot", "screenshot", "intercept", "tap",
+            ];
+            for step in pipeline {
+                if let Some(obj) = step.as_object() {
+                    for key in obj.keys() {
+                        if BROWSER_STEPS.contains(&key.as_str()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
