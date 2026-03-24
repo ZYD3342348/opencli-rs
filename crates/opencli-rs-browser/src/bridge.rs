@@ -9,7 +9,7 @@ use crate::page::DaemonPage;
 const DEFAULT_PORT: u16 = 19825;
 const READY_TIMEOUT: Duration = Duration::from_secs(10);
 const READY_POLL_INTERVAL: Duration = Duration::from_millis(200);
-const EXTENSION_TIMEOUT: Duration = Duration::from_secs(15);
+const EXTENSION_TIMEOUT: Duration = Duration::from_secs(30);
 const EXTENSION_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// High-level bridge that manages the Daemon process and provides IPage instances.
@@ -135,18 +135,36 @@ impl BrowserBridge {
     }
 
     /// Wait for the Chrome extension to connect to the daemon.
+    /// The extension uses exponential backoff (2s, 4s, 8s, 16s, ..., max 60s) so
+    /// we may need to wait up to 30s if it's in a long backoff cycle.
     async fn wait_for_extension(&self, client: &DaemonClient) -> bool {
-        let deadline = tokio::time::Instant::now() + EXTENSION_TIMEOUT;
+        let start = tokio::time::Instant::now();
+        let deadline = start + EXTENSION_TIMEOUT;
+        let mut printed_waiting = false;
 
         while tokio::time::Instant::now() < deadline {
             if client.is_extension_connected().await {
+                if printed_waiting {
+                    eprintln!(); // newline after the dots
+                }
                 info!("Chrome extension connected");
                 return true;
             }
-            debug!("Waiting for Chrome extension to connect...");
+
+            let elapsed = start.elapsed().as_secs();
+            if elapsed >= 2 && !printed_waiting {
+                eprint!("Waiting for Chrome extension to connect");
+                printed_waiting = true;
+            } else if printed_waiting && elapsed % 3 == 0 {
+                eprint!(".");
+            }
+
             tokio::time::sleep(EXTENSION_POLL_INTERVAL).await;
         }
 
+        if printed_waiting {
+            eprintln!();
+        }
         false
     }
 
