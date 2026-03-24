@@ -93,8 +93,10 @@ async fn execute_command_inner(
     }
 }
 
-/// If the first pipeline step is `navigate` to a URL whose domain matches `pre_navigated`,
-/// skip it since we already navigated there.
+/// If the first pipeline step is `navigate` to a root URL whose domain matches
+/// `pre_navigated`, skip it since we already navigated there.
+/// Only skips when the navigate target is the domain root (e.g. https://example.com
+/// or https://example.com/) — NOT when it navigates to a specific path.
 fn skip_redundant_navigate(steps: &[Value], pre_navigated: Option<&str>) -> Vec<Value> {
     let pre_domain = match pre_navigated {
         Some(d) => d,
@@ -105,15 +107,20 @@ fn skip_redundant_navigate(steps: &[Value], pre_navigated: Option<&str>) -> Vec<
         if let Some(obj) = first.as_object() {
             if let Some(url_val) = obj.get("navigate") {
                 if let Some(url) = url_val.as_str() {
-                    // Extract domain from URL
-                    if let Some(domain) = extract_domain(url) {
-                        if domain == pre_domain || domain.ends_with(&format!(".{}", pre_domain)) {
-                            tracing::debug!(
-                                url = url,
-                                "Skipping redundant navigate (already pre-navigated to {})",
-                                pre_domain
-                            );
-                            return steps[1..].to_vec();
+                    // Only skip if URL contains no templates and is a root domain URL
+                    if !url.contains("${{") {
+                        if let Some((domain, path)) = extract_domain_and_path(url) {
+                            let is_root = path.is_empty() || path == "/";
+                            let domain_matches = domain == pre_domain
+                                || domain.ends_with(&format!(".{}", pre_domain));
+                            if is_root && domain_matches {
+                                tracing::debug!(
+                                    url = url,
+                                    "Skipping redundant navigate (already pre-navigated to {})",
+                                    pre_domain
+                                );
+                                return steps[1..].to_vec();
+                            }
                         }
                     }
                 }
@@ -124,13 +131,16 @@ fn skip_redundant_navigate(steps: &[Value], pre_navigated: Option<&str>) -> Vec<
     steps.to_vec()
 }
 
-fn extract_domain(url: &str) -> Option<String> {
+fn extract_domain_and_path(url: &str) -> Option<(String, String)> {
     let without_scheme = url
         .strip_prefix("https://")
         .or_else(|| url.strip_prefix("http://"))?;
-    let domain = without_scheme.split('/').next()?;
-    let domain = domain.split(':').next()?; // remove port
-    Some(domain.to_string())
+    let (host_port, path) = match without_scheme.find('/') {
+        Some(i) => (&without_scheme[..i], &without_scheme[i..]),
+        None => (without_scheme, ""),
+    };
+    let domain = host_port.split(':').next()?; // remove port
+    Some((domain.to_string(), path.to_string()))
 }
 
 async fn run_command(
