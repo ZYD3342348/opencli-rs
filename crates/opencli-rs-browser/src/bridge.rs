@@ -42,7 +42,7 @@ impl BrowserBridge {
             } else {
                 info!(port = self.port, "foreign daemon detected on port, killing it");
                 self.kill_port_occupant().await;
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                self.wait_for_port_free().await?;
                 self.spawn_daemon().await?;
                 self.wait_for_ready(&client).await?;
             }
@@ -88,6 +88,21 @@ impl BrowserBridge {
 
         info!(port = self.port, pid = ?child.id(), "daemon process spawned");
         self.daemon_process = Some(child);
+        Ok(())
+    }
+
+    /// Wait for port to be free after killing the occupant.
+    async fn wait_for_port_free(&self) -> Result<(), CliError> {
+        let client = DaemonClient::new(self.port);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while tokio::time::Instant::now() < deadline {
+            if !client.is_running().await {
+                debug!(port = self.port, "port is now free");
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        warn!(port = self.port, "port still occupied after waiting, attempting spawn anyway");
         Ok(())
     }
 
