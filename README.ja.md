@@ -100,6 +100,14 @@ cp target/release/opencli-rs /usr/local/bin/   # macOS / Linux
 
 > Public モードのコマンド（hackernews、devto、lobsters など）は拡張機能なしで使用できます。
 
+## Skill インストール
+
+ワンクリックで AI Agent に opencli-rs skill をインストール：
+
+```bash
+npx skills add https://github.com/nashsu/opencli-rs-skill
+```
+
 ## クイックスタート
 
 ```bash

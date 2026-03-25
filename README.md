@@ -100,6 +100,14 @@ Simply re-run the install command or download the latest release to overwrite th
 
 > Public mode commands (hackernews, devto, lobsters, etc.) work without the extension.
 
+## Skill Install
+
+One-click install opencli-rs skill for your AI Agent:
+
+```bash
+npx skills add https://github.com/nashsu/opencli-rs-skill
+```
+
 ## Quick Start
 
 ```bash

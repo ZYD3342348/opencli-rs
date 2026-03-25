@@ -101,6 +101,14 @@ cp target/release/opencli-rs /usr/local/bin/   # macOS / Linux
 
 > Public 模式命令（hackernews、devto、lobsters 等）无需安装扩展即可使用。
 
+## Skill 安装
+
+一键为你的 AI Agent 安装 opencli-rs skill：
+
+```bash
+npx skills add https://github.com/nashsu/opencli-rs-skill
+```
+
 ## 快速开始
 
 ```bash
