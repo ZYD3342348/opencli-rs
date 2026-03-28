@@ -1,5 +1,9 @@
 /target
 /docs
+!/docs/
+!/docs/design/
+!/docs/design/wechat-chatbot-export-parity.md
+!/docs/design/local-knowledge-and-upstream-sync.md
 /opencli
 test-results*.md
 twitter-downloads/
